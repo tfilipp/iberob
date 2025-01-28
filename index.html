@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Gallery</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            perspective: 1500px;
+            overflow: hidden;
+            touch-action: none;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
+
+        .gallery {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transform-style: preserve-3d;
+        }
+
+        .gallery-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .gallery-item {
+            position: absolute;
+            width: 400px;
+            height: 500px;
+            transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+            cursor: pointer;
+            transform-style: preserve-3d;
+            will-change: transform;
+        }
+
+        .gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transform-origin: center;
+            backface-visibility: hidden;
+            pointer-events: none;
+        }
+
+        .gallery-item::after {
+            content: '';
+            position: absolute;
+            bottom: -50px;
+            left: 5%;
+            width: 90%;
+            height: 20px;
+            background: rgba(0,0,0,0.3);
+            filter: blur(15px);
+            border-radius: 50%;
+            z-index: -1;
+            transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        .gallery-item:hover {
+            transform: scale(1.05) translateZ(60px);
+        }
+
+        .gallery-item.active {
+            z-index: 10;
+            transform: scale(1.2) translateZ(150px);
+        }
+
+        .gallery-item.active::after {
+            opacity: 0.8;
+            transform: scale(1.1);
+        }
+
+        @media (max-width: 1024px) {
+            .gallery-item {
+                width: 300px;
+                height: 400px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .gallery-item {
+                width: 250px;
+                height: 350px;
+            }
+            
+            .gallery-item.active {
+                transform: scale(1.15) translateZ(100px);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .gallery-item {
+                width: 200px;
+                height: 280px;
+            }
+            
+            .gallery-item.active {
+                transform: scale(1.1) translateZ(80px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="gallery">
+        <div class="gallery-container" id="galleryContainer"></div>
+    </div>
+
+    <script>
+        async function loadImages() {
+            try {
+                const response = await fetch('/images/');
+                const data = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(data, 'text/html');
+                const links = Array.from(doc.querySelectorAll('a'));
+                return links
+                    .map(link => link.href)
+                    .filter(href => /\.(jpg|jpeg|png|gif|webp)$/i.test(href))
+                    .map(href => href.split('/').pop());
+            } catch (error) {
+                console.error('Error loading images:', error);
+                return [];
+            }
+        }
+
+        const container = document.getElementById('galleryContainer');
+        let activeIndex = 0;
+        let isAnimating = false;
+
+        async function initGallery() {
+            const imageNames = await loadImages();
+            activeIndex = Math.floor(imageNames.length / 2);
+
+            imageNames.forEach((src, index) => {
+                const item = document.createElement('div');
+                item.className = 'gallery-item';
+                item.innerHTML = `<img src="/images/${src}" alt="Gallery Image ${index + 1}" loading="lazy">`;
+                item.dataset.index = index;
+                container.appendChild(item);
+            });
+            updateGallery();
+        }
+
+        function updateGallery() {
+            if (isAnimating) return;
+            isAnimating = true;
+
+            const items = document.querySelectorAll('.gallery-item');
+            items.forEach((item, index) => {
+                const offset = index - activeIndex;
+                const xPos = offset * (window.innerWidth < 768 ? 180 : 300);
+                const zPos = Math.abs(offset) * -200;
+                const rotation = offset * 45;
+                const scale = 1 - Math.abs(offset) * 0.2;
+                
+                item.style.transform = `translateX(${xPos}px) translateZ(${zPos}px) rotateY(${rotation}deg) scale(${scale})`;
+                item.style.opacity = Math.max(1 - Math.abs(offset) * 0.3, 0.2);
+                item.style.filter = `blur(${Math.abs(offset) * 2}px)`;
+                
+                item.classList.toggle('active', index === activeIndex);
+            });
+
+            setTimeout(() => {
+                isAnimating = false;
+            }, 600);
+        }
+
+        function handleClick(e) {
+            if (isAnimating) return;
+            
+            const item = e.target.closest('.gallery-item');
+            if (item) {
+                const newIndex = parseInt(item.dataset.index);
+                if (newIndex !== activeIndex) {
+                    activeIndex = newIndex;
+                    updateGallery();
+                }
+            }
+        }
+
+        let touchStartX = 0;
+        let touchEndX = 0;
+
+        function handleTouchStart(e) {
+            touchStartX = e.touches[0].clientX;
+        }
+
+        function handleTouchMove(e) {
+            if (isAnimating) return;
+            touchEndX = e.touches[0].clientX;
+        }
+
+        function handleTouchEnd() {
+            if (isAnimating) return;
+            
+            const swipeDistance = touchEndX - touchStartX;
+            if (Math.abs(swipeDistance) > 50) {
+                const items = document.querySelectorAll('.gallery-item');
+                if (swipeDistance > 0 && activeIndex > 0) {
+                    activeIndex--;
+                } else if (swipeDistance < 0 && activeIndex < items.length - 1) {
+                    activeIndex++;
+                }
+                updateGallery();
+            }
+        }
+
+        // Desktop only
+        if (window.matchMedia("(min-width: 768px)").matches) {
+            document.addEventListener('wheel', (e) => {
+                if (isAnimating) return;
+                
+                const items = document.querySelectorAll('.gallery-item');
+                if (e.deltaY > 0 && activeIndex < items.length - 1) {
+                    activeIndex++;
+                    updateGallery();
+                } else if (e.deltaY < 0 && activeIndex > 0) {
+                    activeIndex--;
+                    updateGallery();
+                }
+            }, { passive: true });
+        }
+
+        container.addEventListener('click', handleClick);
+        document.addEventListener('touchstart', handleTouchStart, { passive: true });
+        document.addEventListener('touchmove', handleTouchMove, { passive: true });
+        document.addEventListener('touchend', handleTouchEnd);
+
+        document.addEventListener('keydown', (e) => {
+            if (isAnimating) return;
+            
+            const items = document.querySelectorAll('.gallery-item');
+            if (e.key === 'ArrowLeft' && activeIndex > 0) {
+                activeIndex--;
+                updateGallery();
+            } else if (e.key === 'ArrowRight' && activeIndex < items.length - 1) {
+                activeIndex++;
+                updateGallery();
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            updateGallery();
+        });
+
+        initGallery();
+    </script>
+</body>
+</html>
