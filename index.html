@@ -12,7 +12,7 @@
         }
 
         body {
-            background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%);
+            background: #000;
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -133,7 +133,7 @@
     <script>
         async function loadImages() {
             try {
-                const response = await fetch('/images/');
+                const response = await fetch('/images');
                 const data = await response.text();
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(data, 'text/html');
