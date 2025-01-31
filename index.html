@@ -1,274 +1,556 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>iberobs-photos</title>
+    <title>math swiper</title>
     <style>
+        :root {
+            --bg: #1A1816;
+            --card: #242220; 
+            --text: #FFFAF5;
+            --border: rgba(255, 250, 245, 0.1);
+            --accent: rgba(255, 250, 245, 0.8);
+            --success: rgba(46, 204, 113, 0.8);
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            font-family: 'Noto Sans', sans-serif;
+            color: var(--text);
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
         }
 
         body {
-            background: #000;
+            background: var(--bg);
             min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-family: Arial, sans-serif;
-            perspective: 1500px;
             overflow: hidden;
-            touch-action: none;
+        }
+
+        .game-area {
             position: fixed;
-            width: 100%;
-            height: 100%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90vw;
+            height: 80vh;
+            max-width: 400px;
+            max-height: 600px;
         }
 
-        .gallery {
-            position: relative;
-            width: 100%;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            transform-style: preserve-3d;
-        }
-
-        .gallery-container {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            transform-style: preserve-3d;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .gallery-item {
+        .card {
             position: absolute;
-            width: 400px;
-            height: 500px;
-            transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
-            cursor: pointer;
-            transform-style: preserve-3d;
-            will-change: transform;
-        }
-
-        .gallery-item img {
             width: 100%;
             height: 100%;
-            object-fit: cover;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
             transform-origin: center;
-            backface-visibility: hidden;
-            pointer-events: none;
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+            will-change: transform;
+            touch-action: none;
         }
 
-        .gallery-item::after {
-            content: '';
+        .settings-card {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            padding: 2rem;
+        }
+
+        .settings-item {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            font-size: 1.2rem;
+        }
+
+        .select {
+            background: var(--card);
+            border: 1px solid var(--border);
+            padding: 1rem;
+            border-radius: 12px;
+            font-size: 1rem;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            position: relative;
+            transition: border-color 0.2s ease;
+        }
+
+        .select:focus {
+            border-color: var(--accent);
+            outline: none;
+        }
+
+        .select option {
+            background: var(--card);
+            color: var(--text);
+            padding: 1rem;
+        }
+
+        .toggle {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
             position: absolute;
-            bottom: -50px;
-            left: 5%;
-            width: 90%;
-            height: 20px;
-            background: rgba(0,0,0,0.3);
-            filter: blur(15px);
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--border);
+            transition: .3s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: var(--text);
+            transition: .3s;
             border-radius: 50%;
-            z-index: -1;
-            transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
         }
 
-        .gallery-item:hover {
-            transform: scale(1.05) translateZ(60px);
+        input:checked + .slider {
+            background-color: var(--accent);
         }
 
-        .gallery-item.active {
-            z-index: 10;
-            transform: scale(1.2) translateZ(150px);
+        input:checked + .slider:before {
+            transform: translateX(26px);
         }
 
-        .gallery-item.active::after {
-            opacity: 0.8;
-            transform: scale(1.1);
+        .hint {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1rem;
+            opacity: 0.5;
+            pointer-events: none;
+            text-align: center;
+            width: 90%;
         }
 
-        @media (max-width: 1024px) {
-            .gallery-item {
-                width: 300px;
-                height: 400px;
-            }
+        .answer {
+            position: fixed;
+            padding: 1rem 2rem;
+            font-size: 1.5rem;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .answer.left {
+            left: 2rem;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .answer.right {
+            right: 2rem;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .checkmark {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            color: var(--success);
+        }
+
+        .checkmark.visible {
+            opacity: 1;
         }
 
         @media (max-width: 768px) {
-            .gallery-item {
-                width: 250px;
-                height: 350px;
+            .answer {
+                bottom: 4rem;
+                top: auto;
+                transform: none;
+                width: 45%;
+                text-align: center;
+                font-size: 1.2rem;
+                padding: 1rem;
             }
-            
-            .gallery-item.active {
-                transform: scale(1.15) translateZ(100px);
-            }
-        }
 
-        @media (max-width: 480px) {
-            .gallery-item {
-                width: 200px;
-                height: 280px;
+            .answer.left {
+                left: 2.5%;
             }
-            
-            .gallery-item.active {
-                transform: scale(1.1) translateZ(80px);
+
+            .answer.right {
+                right: 2.5%;
+            }
+
+            .card {
+                font-size: 2rem;
             }
         }
     </style>
 </head>
 <body>
-    <div class="gallery">
-        <div class="gallery-container" id="galleryContainer"></div>
+    <div class="game-area">
+        <div class="card settings-card">
+            <div class="settings-item">
+                <span>количество заданий</span>
+                <select class="select" id="tasks-count">
+                    <option value="5">5 заданий</option>
+                    <option value="10" selected>10 заданий</option>
+                    <option value="15">15 заданий</option>
+                    <option value="20">20 заданий</option>
+                </select>
+            </div>
+            <div class="settings-item">
+                <span>сложность</span>
+                <select class="select" id="difficulty">
+                    <option value="easy">базовые значения</option>
+                    <option value="medium">обратные функции</option>
+                    <option value="hard">двойные углы</option>
+                    <option value="expert">сложные формулы</option>
+                </select>
+            </div>
+            <div class="hint">свайпни влево или вправо чтобы начать</div>
+        </div>
+    </div>
+    <div class="answer left">
+        <span class="value"></span>
+        <span class="checkmark">✓</span>
+    </div>
+    <div class="answer right">
+        <span class="value"></span>
+        <span class="checkmark">✓</span>
     </div>
 
     <script>
-        async function loadImages() {
-            try {
-                const response = await fetch('/images');
-                const data = await response.text();
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(data, 'text/html');
-                const links = Array.from(doc.querySelectorAll('a'));
-                return links
-                    .map(link => link.href)
-                    .filter(href => /\.(jpg|jpeg|png|gif|webp)$/i.test(href))
-                    .map(href => href.split('/').pop());
-            } catch (error) {
-                console.error('Error loading images:', error);
-                return [];
-            }
-        }
+        const gameArea = document.querySelector('.game-area');
+        const tasksSelect = document.getElementById('tasks-count');
+        const difficultySelect = document.getElementById('difficulty');
+        const leftAnswer = document.querySelector('.answer.left');
+        const rightAnswer = document.querySelector('.answer.right');
 
-        const container = document.getElementById('galleryContainer');
-        let activeIndex = 0;
-        let isAnimating = false;
+        const SPECIAL_VALUES = {
+            0: ['0', '1', '0'],            // sin, cos, tg для 0°
+            30: ['1/2', '√3/2', '1/√3'],   // 30°
+            45: ['√2/2', '√2/2', '1'],     // 45°
+            60: ['√3/2', '1/2', '√3'],     // 60°
+            90: ['1', '0', 'undefined'],    // 90°
+            120: ['√3/2', '-1/2', '-√3'],  // 120°
+            135: ['√2/2', '-√2/2', '-1'],  // 135°
+            150: ['1/2', '-√3/2', '-1/√3'], // 150°
+            180: ['0', '-1', '0'],         // 180°
+            270: ['-1', '0', 'undefined'],  // 270°
+            360: ['0', '1', '0']           // 360°
+        };
 
-        async function initGallery() {
-            const imageNames = await loadImages();
-            activeIndex = Math.floor(imageNames.length / 2);
+        const INVERSE_VALUES = {
+            '0': '0°',
+            '1/2': '30°',
+            '√2/2': '45°',
+            '√3/2': '60°',
+            '1': '90°',
+            '-1/2': '150°',
+            '-√2/2': '135°',
+            '-√3/2': '120°',
+            '-1': '270°'
+        };
 
-            imageNames.forEach((src, index) => {
-                const item = document.createElement('div');
-                item.className = 'gallery-item';
-                item.innerHTML = `<img src="/images/${src}" alt="Gallery Image ${index + 1}" loading="lazy">`;
-                item.dataset.index = index;
-                container.appendChild(item);
-            });
-            updateGallery();
-        }
+        let settings = {
+            taskCount: 10,
+            difficulty: 'easy'
+        };
 
-        function updateGallery() {
-            if (isAnimating) return;
-            isAnimating = true;
+        let currentProblem = -1;
+        let problems = [];
+        let isDragging = false;
+        let startX = 0;
+        let currentCard = null;
+        let currentX = 0;
 
-            const items = document.querySelectorAll('.gallery-item');
-            items.forEach((item, index) => {
-                const offset = index - activeIndex;
-                const xPos = offset * (window.innerWidth < 768 ? 180 : 300);
-                const zPos = Math.abs(offset) * -200;
-                const rotation = offset * 45;
-                const scale = 1 - Math.abs(offset) * 0.2;
-                
-                item.style.transform = `translateX(${xPos}px) translateZ(${zPos}px) rotateY(${rotation}deg) scale(${scale})`;
-                item.style.opacity = Math.max(1 - Math.abs(offset) * 0.3, 0.2);
-                item.style.filter = `blur(${Math.abs(offset) * 2}px)`;
-                
-                item.classList.toggle('active', index === activeIndex);
-            });
-
-            setTimeout(() => {
-                isAnimating = false;
-            }, 600);
-        }
-
-        function handleClick(e) {
-            if (isAnimating) return;
-            
-            const item = e.target.closest('.gallery-item');
-            if (item) {
-                const newIndex = parseInt(item.dataset.index);
-                if (newIndex !== activeIndex) {
-                    activeIndex = newIndex;
-                    updateGallery();
-                }
-            }
-        }
-
-        let touchStartX = 0;
-        let touchEndX = 0;
-
-        function handleTouchStart(e) {
-            touchStartX = e.touches[0].clientX;
-        }
-
-        function handleTouchMove(e) {
-            if (isAnimating) return;
-            touchEndX = e.touches[0].clientX;
-        }
-
-        function handleTouchEnd() {
-            if (isAnimating) return;
-            
-            const swipeDistance = touchEndX - touchStartX;
-            if (Math.abs(swipeDistance) > 50) {
-                const items = document.querySelectorAll('.gallery-item');
-                if (swipeDistance > 0 && activeIndex > 0) {
-                    activeIndex--;
-                } else if (swipeDistance < 0 && activeIndex < items.length - 1) {
-                    activeIndex++;
-                }
-                updateGallery();
-            }
-        }
-
-        // Desktop only
-        if (window.matchMedia("(min-width: 768px)").matches) {
-            document.addEventListener('wheel', (e) => {
-                if (isAnimating) return;
-                
-                const items = document.querySelectorAll('.gallery-item');
-                if (e.deltaY > 0 && activeIndex < items.length - 1) {
-                    activeIndex++;
-                    updateGallery();
-                } else if (e.deltaY < 0 && activeIndex > 0) {
-                    activeIndex--;
-                    updateGallery();
-                }
-            }, { passive: true });
-        }
-
-        container.addEventListener('click', handleClick);
-        document.addEventListener('touchstart', handleTouchStart, { passive: true });
-        document.addEventListener('touchmove', handleTouchMove, { passive: true });
-        document.addEventListener('touchend', handleTouchEnd);
-
-        document.addEventListener('keydown', (e) => {
-            if (isAnimating) return;
-            
-            const items = document.querySelectorAll('.gallery-item');
-            if (e.key === 'ArrowLeft' && activeIndex > 0) {
-                activeIndex--;
-                updateGallery();
-            } else if (e.key === 'ArrowRight' && activeIndex < items.length - 1) {
-                activeIndex++;
-                updateGallery();
-            }
+        tasksSelect.addEventListener('change', (e) => {
+            settings.taskCount = parseInt(e.value);
         });
 
-        window.addEventListener('resize', () => {
-            updateGallery();
+        difficultySelect.addEventListener('change', (e) => {
+            settings.difficulty = e.target.value;
         });
 
-        initGallery();
+        function getRandomAngle() {
+            const angles = Object.keys(SPECIAL_VALUES);
+            return angles[Math.floor(Math.random() * angles.length)];
+        }
+
+        function getRandomSpecialValue() {
+            const values = ['0', '1/2', '√2/2', '√3/2', '1', '-1/2', '-√2/2', '-√3/2', '-1'];
+            return values[Math.floor(Math.random() * values.length)];
+        }
+
+        function generateSimpleProblem() {
+            const angle = getRandomAngle();
+            const fnIndex = Math.floor(Math.random() * 3);
+            const fns = ['sin', 'cos', 'tg'];
+            const fn = fns[fnIndex];
+
+            const correctAnswer = SPECIAL_VALUES[angle][fnIndex];
+            const wrongValues = Object.values(SPECIAL_VALUES)
+                .map(arr => arr[fnIndex])
+                .filter(val => val !== correctAnswer && val !== 'undefined');
+
+            const wrongAnswer = wrongValues[Math.floor(Math.random() * wrongValues.length)];
+
+            return {
+                text: `${fn}(${angle}°) = ?`,
+                correctAnswer,
+                wrongAnswer
+            };
+        }
+
+        function generateInverseProblem() {
+            const value = getRandomSpecialValue();
+            const fns = ['arcsin', 'arccos'];
+            const fn = fns[Math.floor(Math.random() * fns.length)];
+
+            const correctAnswer = INVERSE_VALUES[value];
+            const wrongAnswer = INVERSE_VALUES[getRandomSpecialValue()];
+
+            return {
+                text: `${fn}(${value}) = ?`,
+                correctAnswer,
+                wrongAnswer
+            };
+        }
+
+        function generateDoubleProblem() {
+            const angle = getRandomAngle();
+            const formulas = [
+                {
+                    text: `sin(2⋅${angle}°)`,
+                    value: `2⋅sin(${angle}°)⋅cos(${angle}°)`
+                },
+                {
+                    text: `cos(2⋅${angle}°)`,
+                    value: `cos²(${angle}°) - sin²(${angle}°)`
+                },
+                {
+                    text: `tg(2⋅${angle}°)`,
+                    value: `2⋅tg(${angle}°)/(1-tg²(${angle}°))`
+                }
+            ];
+
+            const formula = formulas[Math.floor(Math.random() * formulas.length)];
+            const wrongFormulas = formulas.filter(f => f !== formula);
+            const wrongFormula = wrongFormulas[Math.floor(Math.random() * wrongFormulas.length)];
+
+            return {
+                text: `${formula.text} = ?`,
+                correctAnswer: formula.value,
+                wrongAnswer: wrongFormula.value
+            };
+        }
+
+        function generateExpertProblem() {
+            const problems = [
+                // Формулы сложения
+                () => {
+                    const angle1 = getRandomAngle();
+                    const angle2 = getRandomAngle();
+                    return {
+                        text: `sin(${angle1}° + ${angle2}°) = ?`,
+                        correctAnswer: `sin(${angle1}°)⋅cos(${angle2}°) + cos(${angle1}°)⋅sin(${angle2}°)`,
+                        wrongAnswer: `sin(${angle1}°)⋅cos(${angle2}°) - cos(${angle1}°)⋅sin(${angle2}°)`
+                    };
+                },
+                // Формулы половинного угла
+                () => {
+                    const angle = getRandomAngle();
+                    return {
+                        text: `sin²(${angle/2}°) = ?`,
+                        correctAnswer: `(1 - cos(${angle}°))/2`,
+                        wrongAnswer: `(1 + cos(${angle}°))/2`
+                    };
+                },
+                // Обратные функции композиций
+                () => {
+                    const value = getRandomSpecialValue();
+                    return {
+                        text: `arcsin(sin(${value})) = ?`,
+                        correctAnswer: value,
+                        wrongAnswer: `-${value}`
+                    };
+                }
+            ];
+
+            const problem = problems[Math.floor(Math.random() * problems.length)]();
+            return problem;
+        }
+
+        function generateProblem() {
+            switch(settings.difficulty) {
+                case 'easy':
+                    return generateSimpleProblem();
+                case 'medium':
+                    return generateInverseProblem();
+                case 'hard':
+                    return generateDoubleProblem();
+                case 'expert':
+                    return generateExpertProblem();
+            }
+        }
+
+        function createCard(content) {
+            const card = document.createElement('div');
+            card.className = 'card';
+
+            // Форматирование математических выражений
+            content = content
+                .replace(/sin/g, 'sin')
+                .replace(/cos/g, 'cos')
+                .replace(/tg/g, 'tg')
+                .replace(/arcsin/g, 'arcsin')
+                .replace(/arccos/g, 'arccos')
+                .replace(/arctg/g, 'arctg')
+                .replace(/\^2/g, '²')
+                .replace(/\^3/g, '³')
+                .replace(/sqrt/g, '√');
+
+            card.innerHTML = content;
+            return card;
+        }
+
+        function startGame() {
+            problems = Array(settings.taskCount).fill().map(() => generateProblem());
+            currentProblem = 0;
+            showNextProblem();
+        }
+
+        function showNextProblem() {
+            if (currentProblem >= problems.length) {
+                const card = createCard('игра завершена!');
+                gameArea.innerHTML = '';
+                gameArea.appendChild(card);
+                return;
+            }
+
+            const problem = problems[currentProblem];
+            const card = createCard(problem.text);
+            gameArea.innerHTML = '';
+            gameArea.appendChild(card);
+
+            if (Math.random() < 0.5) {
+                leftAnswer.querySelector('.value').textContent = problem.correctAnswer;
+                rightAnswer.querySelector('.value').textContent = problem.wrongAnswer;
+            } else {
+                leftAnswer.querySelector('.value').textContent = problem.wrongAnswer;
+                rightAnswer.querySelector('.value').textContent = problem.correctAnswer;
+            }
+
+            leftAnswer.querySelector('.checkmark').classList.remove('visible');
+            rightAnswer.querySelector('.checkmark').classList.remove('visible');
+
+            initDrag(card);
+        }
+
+        function initDrag(element) {
+            element.addEventListener('pointerdown', dragStart);
+            element.addEventListener('pointermove', drag);
+            element.addEventListener('pointerup', dragEnd);
+            element.addEventListener('pointerleave', dragEnd);
+        }
+
+        function dragStart(e) {
+            if (isDragging) return;
+
+            isDragging = true;
+            currentCard = e.currentTarget;
+            startX = e.clientX;
+
+            currentCard.setPointerCapture(e.pointerId);
+        }
+
+        function drag(e) {
+            if (!isDragging) return;
+
+            e.preventDefault();
+            currentX = e.clientX - startX;
+            const rotation = currentX * 0.1;
+
+            currentCard.style.transition = 'none';
+            currentCard.style.transform = `translateX(${currentX}px) rotate(${rotation}deg)`;
+
+            const opacity = Math.min(Math.abs(currentX) / 100, 1);
+            leftAnswer.style.opacity = currentX < 0 ? opacity : 0;
+            rightAnswer.style.opacity = currentX > 0 ? opacity : 0;
+        }
+
+        function dragEnd(e) {
+            if (!isDragging) return;
+            isDragging = false;
+
+            const swipeThreshold = 100;
+            currentCard.style.transition = 'transform 0.3s ease-out';
+
+            if (Math.abs(currentX) > swipeThreshold) {
+                const direction = currentX > 0 ? 1 : -1;
+                currentCard.style.transform = `translateX(${direction * window.innerWidth * 1.5}px) rotate(${direction * 45}deg)`;
+
+                if (currentProblem >= 0) {
+                    const problem = problems[currentProblem];
+                    const selectedAnswer = direction > 0 ? rightAnswer : leftAnswer;
+                    const isCorrect = selectedAnswer.querySelector('.value').textContent === problem.correctAnswer;
+
+                    if (isCorrect) {
+                        selectedAnswer.querySelector('.checkmark').classList.add('visible');
+                    }
+                }
+
+                setTimeout(() => {
+                    if (currentProblem === -1) {
+                        startGame();
+                    } else {
+                        currentProblem++;
+                        showNextProblem();
+                    }
+                }, 500);
+            } else {
+                currentCard.style.transform = '';
+            }
+
+            leftAnswer.style.opacity = 0;
+            rightAnswer.style.opacity = 0;
+            currentX = 0;
+        }
+
+        // Initialize first card
+        initDrag(document.querySelector('.card'));
     </script>
 </body>
 </html>
