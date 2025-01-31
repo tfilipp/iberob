@@ -7,7 +7,7 @@
     <style>
         :root {
             --bg: #1A1816;
-            --card: #242220; 
+            --card: #242220;
             --text: #FFFAF5;
             --border: rgba(255, 250, 245, 0.1);
             --accent: rgba(255, 250, 245, 0.8);
@@ -193,6 +193,77 @@
             opacity: 1;
         }
 
+        .math {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .fraction {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            margin: 0 0.2em;
+            line-height: 1.2;
+        }
+
+        .fraction > span {
+            padding: 0 0.2em;
+        }
+
+        .fraction > span:first-child {
+            border-bottom: 1px solid var(--text);
+        }
+
+        .stats {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            width: 100%;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1.2rem;
+        }
+
+        .stat-value {
+            font-family: 'DM Serif Text', serif;
+        }
+
+        .progress {
+            width: 100%;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--accent);
+            transition: width 0.3s ease;
+        }
+
+        .results-card {
+            gap: 2rem;
+        }
+
+        .results-title {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .new-best {
+            color: var(--success);
+            font-size: 1.2rem;
+            margin-top: 1rem;
+        }
+
         @media (max-width: 768px) {
             .answer {
                 bottom: 4rem;
@@ -234,14 +305,22 @@
                 <span>сложность</span>
                 <select class="select" id="difficulty">
                     <option value="easy">базовые значения</option>
-                    <option value="medium">обратные функции</option>
-                    <option value="hard">двойные углы</option>
+                    <option value="medium">двойные углы</option>
+                    <option value="hard">обратные функции</option>
                     <option value="expert">сложные формулы</option>
                 </select>
             </div>
-            <div class="hint">свайпни влево или вправо чтобы начать</div>
+            <div class="settings-item">
+                <span>время</span>
+                <label class="toggle">
+                    <input type="checkbox" id="timer-toggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="hint">свайпни влево или вправо чтобы начать<br>свайпни и удержи для просмотра ответов</div>
         </div>
     </div>
+
     <div class="answer left">
         <span class="value"></span>
         <span class="checkmark">✓</span>
@@ -252,41 +331,41 @@
     </div>
 
     <script>
+        // Основные элементы
         const gameArea = document.querySelector('.game-area');
         const tasksSelect = document.getElementById('tasks-count');
         const difficultySelect = document.getElementById('difficulty');
+        const timerToggle = document.getElementById('timer-toggle');
         const leftAnswer = document.querySelector('.answer.left');
         const rightAnswer = document.querySelector('.answer.right');
 
+        // Специальные значения тригонометрических функций
         const SPECIAL_VALUES = {
-            0: ['0', '1', '0'],            // sin, cos, tg для 0°
-            30: ['1/2', '√3/2', '1/√3'],   // 30°
-            45: ['√2/2', '√2/2', '1'],     // 45°
-            60: ['√3/2', '1/2', '√3'],     // 60°
-            90: ['1', '0', 'undefined'],    // 90°
-            120: ['√3/2', '-1/2', '-√3'],  // 120°
-            135: ['√2/2', '-√2/2', '-1'],  // 135°
-            150: ['1/2', '-√3/2', '-1/√3'], // 150°
-            180: ['0', '-1', '0'],         // 180°
-            270: ['-1', '0', 'undefined'],  // 270°
-            360: ['0', '1', '0']           // 360°
+            '0': {sin: '0', cos: '1', tg: '0'},
+            '30': {sin: '1/2', cos: '√3/2', tg: '1/√3'},
+            '45': {sin: '√2/2', cos: '√2/2', tg: '1'},
+            '60': {sin: '√3/2', cos: '1/2', tg: '√3'},
+            '90': {sin: '1', cos: '0', tg: 'undefined'},
+            '120': {sin: '√3/2', cos: '-1/2', tg: '-√3'},
+            '135': {sin: '√2/2', cos: '-√2/2', tg: '-1'},
+            '150': {sin: '1/2', cos: '-√3/2', tg: '-1/√3'},
+            '180': {sin: '0', cos: '-1', tg: '0'},
+            '270': {sin: '-1', cos: '0', tg: 'undefined'},
+            '360': {sin: '0', cos: '1', tg: '0'}
         };
 
-        const INVERSE_VALUES = {
-            '0': '0°',
-            '1/2': '30°',
-            '√2/2': '45°',
-            '√3/2': '60°',
-            '1': '90°',
-            '-1/2': '150°',
-            '-√2/2': '135°',
-            '-√3/2': '120°',
-            '-1': '270°'
-        };
-
+        // Состояние игры
         let settings = {
             taskCount: 10,
-            difficulty: 'easy'
+            difficulty: 'easy',
+            timer: false
+        };
+
+        let stats = {
+            correct: 0,
+            total: 0,
+            startTime: 0,
+            time: 0
         };
 
         let currentProblem = -1;
@@ -296,36 +375,61 @@
         let currentCard = null;
         let currentX = 0;
 
-        tasksSelect.addEventListener('change', (e) => {
-            settings.taskCount = parseInt(e.value);
-        });
+        // Загрузка лучших результатов
+        let bestResults = JSON.parse(localStorage.getItem('bestResults') || '{}');
 
-        difficultySelect.addEventListener('change', (e) => {
-            settings.difficulty = e.target.value;
-        });
+        // Обработчики настроек
+        tasksSelect.addEventListener('change', e => settings.taskCount = parseInt(e.target.value));
+        difficultySelect.addEventListener('change', e => settings.difficulty = e.target.value);
+        timerToggle.addEventListener('change', e => settings.timer = e.target.checked);
 
-        function getRandomAngle() {
+        function resetStats() {
+            stats = {
+                correct: 0,
+                total: 0,
+                startTime: Date.now(),
+                time: 0
+            };
+        }
+
+        function updateStats(isCorrect) {
+            stats.correct += isCorrect ? 1 : 0;
+            stats.total += 1;
+        }
+
+        function formatTime(ms) {
+            const seconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(seconds / 60);
+            return `${minutes}:${(seconds % 60).toString().padStart(2, '0')}`;
+        }
+
+        function generateProblem() {
             const angles = Object.keys(SPECIAL_VALUES);
-            return angles[Math.floor(Math.random() * angles.length)];
+
+            switch(settings.difficulty) {
+                case 'easy':
+                    return generateBasicProblem(angles);
+                case 'medium':
+                    return generateDoubleProblem(angles);
+                case 'hard':
+                    return generateInverseProblem(angles);
+                case 'expert':
+                    return generateComplexProblem(angles);
+            }
         }
 
-        function getRandomSpecialValue() {
-            const values = ['0', '1/2', '√2/2', '√3/2', '1', '-1/2', '-√2/2', '-√3/2', '-1'];
-            return values[Math.floor(Math.random() * values.length)];
-        }
+        function generateBasicProblem(angles) {
+            const angle = angles[Math.floor(Math.random() * angles.length)];
+            const functions = ['sin', 'cos', 'tg'];
+            const fn = functions[Math.floor(Math.random() * functions.length)];
 
-        function generateSimpleProblem() {
-            const angle = getRandomAngle();
-            const fnIndex = Math.floor(Math.random() * 3);
-            const fns = ['sin', 'cos', 'tg'];
-            const fn = fns[fnIndex];
+            const correctAnswer = SPECIAL_VALUES[angle][fn];
+            let wrongAnswer;
 
-            const correctAnswer = SPECIAL_VALUES[angle][fnIndex];
-            const wrongValues = Object.values(SPECIAL_VALUES)
-                .map(arr => arr[fnIndex])
-                .filter(val => val !== correctAnswer && val !== 'undefined');
-
-            const wrongAnswer = wrongValues[Math.floor(Math.random() * wrongValues.length)];
+            do {
+                const wrongAngle = angles[Math.floor(Math.random() * angles.length)];
+                wrongAnswer = SPECIAL_VALUES[wrongAngle][fn];
+            } while (wrongAnswer === correctAnswer || wrongAnswer === 'undefined');
 
             return {
                 text: `${fn}(${angle}°) = ?`,
@@ -334,129 +438,194 @@
             };
         }
 
-        function generateInverseProblem() {
-            const value = getRandomSpecialValue();
-            const fns = ['arcsin', 'arccos'];
-            const fn = fns[Math.floor(Math.random() * fns.length)];
+        function generateDoubleProblem(angles) {
+            const angle = angles[Math.floor(Math.random() * angles.length)];
+            const doubleAngle = (parseInt(angle) * 2) % 360;
+            const fn = Math.random() < 0.5 ? 'sin' : 'cos';
 
-            const correctAnswer = INVERSE_VALUES[value];
-            const wrongAnswer = INVERSE_VALUES[getRandomSpecialValue()];
+            const correctAnswer = SPECIAL_VALUES[doubleAngle.toString()][fn];
+            let wrongAnswer;
+
+            do {
+                const wrongAngle = angles[Math.floor(Math.random() * angles.length)];
+                wrongAnswer = SPECIAL_VALUES[wrongAngle][fn];
+            } while (wrongAnswer === correctAnswer || wrongAnswer === 'undefined');
 
             return {
-                text: `${fn}(${value}) = ?`,
+                text: `${fn}(2×${angle}°) = ?`,
                 correctAnswer,
                 wrongAnswer
             };
         }
 
-        function generateDoubleProblem() {
-            const angle = getRandomAngle();
-            const formulas = [
-                {
-                    text: `sin(2⋅${angle}°)`,
-                    value: `2⋅sin(${angle}°)⋅cos(${angle}°)`
-                },
-                {
-                    text: `cos(2⋅${angle}°)`,
-                    value: `cos²(${angle}°) - sin²(${angle}°)`
-                },
-                {
-                    text: `tg(2⋅${angle}°)`,
-                    value: `2⋅tg(${angle}°)/(1-tg²(${angle}°))`
-                }
-            ];
+        function generateInverseProblem(angles) {
+            const fn = Math.random() < 0.5 ? 'arcsin' : 'arccos';
+            const validAngles = angles.filter(angle => {
+                const value = SPECIAL_VALUES[angle][fn === 'arcsin' ? 'sin' : 'cos'];
+                return value !== 'undefined' && value !== '0' && value !== '1' && value !== '-1';
+            });
 
-            const formula = formulas[Math.floor(Math.random() * formulas.length)];
-            const wrongFormulas = formulas.filter(f => f !== formula);
-            const wrongFormula = wrongFormulas[Math.floor(Math.random() * wrongFormulas.length)];
+            const angle = validAngles[Math.floor(Math.random() * validAngles.length)];
+            const value = SPECIAL_VALUES[angle][fn === 'arcsin' ? 'sin' : 'cos'];
 
             return {
-                text: `${formula.text} = ?`,
-                correctAnswer: formula.value,
-                wrongAnswer: wrongFormula.value
+                text: `${fn}(${value}) = ?`,
+                correctAnswer: `${angle}°`,
+                wrongAnswer: `${validAngles[Math.floor(Math.random() * validAngles.length)]}°`
             };
         }
 
-        function generateExpertProblem() {
-            const problems = [
-                // Формулы сложения
+        function generateComplexProblem(angles) {
+            const types = [
+                // Сумма углов
                 () => {
-                    const angle1 = getRandomAngle();
-                    const angle2 = getRandomAngle();
+                    const angle1 = angles[Math.floor(Math.random() * angles.length)];
+                    const angle2 = angles[Math.floor(Math.random() * angles.length)];
+                    const sum = (parseInt(angle1) + parseInt(angle2)) % 360;
+
                     return {
                         text: `sin(${angle1}° + ${angle2}°) = ?`,
-                        correctAnswer: `sin(${angle1}°)⋅cos(${angle2}°) + cos(${angle1}°)⋅sin(${angle2}°)`,
-                        wrongAnswer: `sin(${angle1}°)⋅cos(${angle2}°) - cos(${angle1}°)⋅sin(${angle2}°)`
+                        correctAnswer: SPECIAL_VALUES[sum.toString()].sin,
+                        wrongAnswer: SPECIAL_VALUES[angle1].sin
                     };
                 },
-                // Формулы половинного угла
+                // Произведение
                 () => {
-                    const angle = getRandomAngle();
+                    const angle = angles[Math.floor(Math.random() * angles.length)];
                     return {
-                        text: `sin²(${angle/2}°) = ?`,
-                        correctAnswer: `(1 - cos(${angle}°))/2`,
-                        wrongAnswer: `(1 + cos(${angle}°))/2`
+                        text: `sin(${angle}°)×cos(${angle}°) = ?`,
+                        correctAnswer: (parseFloat(SPECIAL_VALUES[angle].sin) * parseFloat(SPECIAL_VALUES[angle].cos)).toFixed(2),
+                        wrongAnswer: SPECIAL_VALUES[angle].sin
                     };
                 },
-                // Обратные функции композиций
+                // Половинный угол
                 () => {
-                    const value = getRandomSpecialValue();
+                    const angle = angles[Math.floor(Math.random() * angles.length)];
+                    const halfAngle = (parseInt(angle) / 2).toString();
+
                     return {
-                        text: `arcsin(sin(${value})) = ?`,
-                        correctAnswer: value,
-                        wrongAnswer: `-${value}`
+                        text: `sin²(${angle}°/2) = ?`,
+                        correctAnswer: SPECIAL_VALUES[halfAngle]?.sin || '1/2',
+                        wrongAnswer: SPECIAL_VALUES[angle].sin
                     };
                 }
             ];
 
-            const problem = problems[Math.floor(Math.random() * problems.length)]();
-            return problem;
-        }
-
-        function generateProblem() {
-            switch(settings.difficulty) {
-                case 'easy':
-                    return generateSimpleProblem();
-                case 'medium':
-                    return generateInverseProblem();
-                case 'hard':
-                    return generateDoubleProblem();
-                case 'expert':
-                    return generateExpertProblem();
-            }
+            return types[Math.floor(Math.random() * types.length)]();
         }
 
         function createCard(content) {
             const card = document.createElement('div');
             card.className = 'card';
 
-            // Форматирование математических выражений
+            if(content.includes('результаты')) {
+                card.classList.add('results-card');
+            }
+
             content = content
                 .replace(/sin/g, 'sin')
                 .replace(/cos/g, 'cos')
                 .replace(/tg/g, 'tg')
-                .replace(/arcsin/g, 'arcsin')
-                .replace(/arccos/g, 'arccos')
-                .replace(/arctg/g, 'arctg')
+                .replace(/arc/g, 'arc')
                 .replace(/\^2/g, '²')
-                .replace(/\^3/g, '³')
                 .replace(/sqrt/g, '√');
 
             card.innerHTML = content;
             return card;
         }
 
+        function createResultsCard() {
+            stats.time = Date.now() - stats.startTime;
+            const accuracy = (stats.correct / stats.total * 100).toFixed(1);
+
+            // Сохраняем и проверяем рекорд
+            const key = `${settings.difficulty}_${settings.taskCount}`;
+            const isNewBest = !bestResults[key] || 
+                            bestResults[key].accuracy < parseFloat(accuracy) ||
+                            (bestResults[key].accuracy === parseFloat(accuracy) && 
+                             bestResults[key].time > stats.time);
+
+            if(isNewBest) {
+                bestResults[key] = {
+                    accuracy: parseFloat(accuracy),
+                    time: stats.time,
+                    date: Date.now()
+                };
+                localStorage.setItem('bestResults', JSON.stringify(bestResults));
+            }
+
+            return createCard(`
+                <div class="results-title">результаты</div>
+                <div class="stats">
+                    <div class="stat-item">
+                        <span>верно</span>
+                        <span class="stat-value">${stats.correct}/${stats.total}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>точность</span>
+                        <span class="stat-value">${accuracy}%</span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar" style="width: ${accuracy}%"></div>
+                    </div>
+                    ${settings.timer ? `
+                        <div class="stat-item">
+                            <span>время</span>
+                            <span class="stat-value">${formatTime(stats.time)}</span>
+                        </div>
+                    ` : ''}
+                    ${isNewBest ? '<div class="new-best">новый рекорд! 🎉</div>' : ''}
+                </div>
+                <div class="settings-item">
+                    <span>количество заданий</span>
+                    <select class="select" id="results-tasks">
+                        ${tasksSelect.innerHTML}
+                    </select>
+                </div>
+                <div class="settings-item">
+                    <span>сложность</span>
+                    <select class="select" id="results-difficulty">
+                        ${difficultySelect.innerHTML}
+                    </select>
+                </div>
+                <div class="settings-item">
+                    <span>время</span>
+                    <label class="toggle">
+                        <input type="checkbox" id="results-timer">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="hint">свайпни для новой игры</div>
+            `);
+        }
+
         function startGame() {
             problems = Array(settings.taskCount).fill().map(() => generateProblem());
             currentProblem = 0;
+            resetStats();
             showNextProblem();
         }
 
         function showNextProblem() {
             if (currentProblem >= problems.length) {
-                const card = createCard('игра завершена!');
+                const resultsCard = createResultsCard();
                 gameArea.innerHTML = '';
-                gameArea.appendChild(card);
+                gameArea.appendChild(resultsCard);
+
+                // Восстанавливаем настройки на карточке результатов
+                resultsCard.querySelector('#results-tasks').value = settings.taskCount;
+                resultsCard.querySelector('#results-difficulty').value = settings.difficulty;
+                resultsCard.querySelector('#results-timer').checked = settings.timer;
+
+                // Добавляем обработчики
+                resultsCard.querySelector('#results-tasks').addEventListener('change', 
+                    e => settings.taskCount = parseInt(e.target.value));
+                resultsCard.querySelector('#results-difficulty').addEventListener('change',
+                    e => settings.difficulty = e.target.value);
+                resultsCard.querySelector('#results-timer').addEventListener('change',
+                    e => settings.timer = e.target.checked);
+
+                initDrag(resultsCard);
                 return;
             }
 
@@ -479,6 +648,7 @@
             initDrag(card);
         }
 
+        // Обработка свайпов
         function initDrag(element) {
             element.addEventListener('pointerdown', dragStart);
             element.addEventListener('pointermove', drag);
@@ -488,18 +658,16 @@
 
         function dragStart(e) {
             if (isDragging) return;
-
             isDragging = true;
             currentCard = e.currentTarget;
             startX = e.clientX;
-
             currentCard.setPointerCapture(e.pointerId);
         }
 
         function drag(e) {
             if (!isDragging) return;
-
             e.preventDefault();
+
             currentX = e.clientX - startX;
             const rotation = currentX * 0.1;
 
@@ -522,7 +690,9 @@
                 const direction = currentX > 0 ? 1 : -1;
                 currentCard.style.transform = `translateX(${direction * window.innerWidth * 1.5}px) rotate(${direction * 45}deg)`;
 
-                if (currentProblem >= 0) {
+                if (currentProblem === -1 || currentProblem >= problems.length) {
+                    startGame();
+                } else {
                     const problem = problems[currentProblem];
                     const selectedAnswer = direction > 0 ? rightAnswer : leftAnswer;
                     const isCorrect = selectedAnswer.querySelector('.value').textContent === problem.correctAnswer;
@@ -530,16 +700,11 @@
                     if (isCorrect) {
                         selectedAnswer.querySelector('.checkmark').classList.add('visible');
                     }
-                }
 
-                setTimeout(() => {
-                    if (currentProblem === -1) {
-                        startGame();
-                    } else {
-                        currentProblem++;
-                        showNextProblem();
-                    }
-                }, 500);
+                    updateStats(isCorrect);
+                    currentProblem++;
+                    setTimeout(showNextProblem, 500);
+                }
             } else {
                 currentCard.style.transform = '';
             }
@@ -549,7 +714,7 @@
             currentX = 0;
         }
 
-        // Initialize first card
+        // Инициализация
         initDrag(document.querySelector('.card'));
     </script>
 </body>
